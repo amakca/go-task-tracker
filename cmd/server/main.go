@@ -52,21 +52,20 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 
+	tracker := NewTracker(srv)
+
 	go func() {
 		log.Info().Str("addr", addr).Msg("http server starting")
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal().Err(err).Msg("http server failed")
-		}
+		tracker.Start()
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	ctxShutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	ctxShutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctxShutdown); err != nil {
-		log.Error().Err(err).Msg("server shutdown error")
-	}
+	tracker.Shutdown(ctxShutdown)
 	log.Info().Msg("server stopped")
 }
 
