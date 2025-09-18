@@ -1,108 +1,106 @@
 package v1
 
 import (
+	"context"
+	"encoding/json"
+	"go-task-tracker/internal/services/contracts"
+	"go-task-tracker/internal/services/users"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
 )
 
-func registerAuthRoutes(r chi.Router) {
-	r.Route("/auth", func(r chi.Router) {
-		// r.Post("/signup", handleSignup)
-		// r.Post("/login", handleLogin)
-	})
+type authRoutes struct {
+	authService contracts.Auth
 }
 
 type signupRequest struct {
 	Username string `json:"username"`
-	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-type loginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+func registerAuthRoutes(r chi.Router, authService contracts.Auth) {
+	a := &authRoutes{
+		authService: authService,
+	}
+
+	r.Route("/auth", func(r chi.Router) {
+		r.Post("/signup", a.handleSignup)
+		r.Post("/login", a.handleLogin)
+	})
 }
 
-type authResponse struct {
-	AccessToken string `json:"access_token"`
+func (a *authRoutes) handleSignup(w http.ResponseWriter, r *http.Request) {
+
+	var req signupRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	if req.Username == "" || len(req.Password) < 6 {
+		http.Error(w, "invalid fields", http.StatusBadRequest)
+		return
+	}
+
+	ctx := context.TODO()
+	id, err := a.authService.CreateUser(ctx, contracts.AuthCreateUserInput{
+		Username: req.Username,
+		Password: req.Password,
+	})
+	if err != nil {
+		log.Error().Err(err)
+		if err == users.ErrUserAlreadyExists {
+			http.Error(w, "server error", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "server error", http.StatusInternalServerError)
+		return
+	}
+
+	type response struct {
+		Id int `json:"id"`
+	}
+
+	writeJSON(w, http.StatusCreated, response{Id: id})
 }
 
-// func (a *API) handleSignup(w http.ResponseWriter, r *http.Request) {
-// 	var req signupRequest
-// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-// 		http.Error(w, "invalid json", http.StatusBadRequest)
-// 		return
-// 	}
-// 	if req.Username == "" || req.Email == "" || len(req.Password) < 6 {
-// 		http.Error(w, "invalid fields", http.StatusBadRequest)
-// 		return
-// 	}
-// 	hash, err := auth.HashPassword(req.Password)
-// 	if err != nil {
-// 		log.Error().Err(err).Msg("hash error")
-// 		http.Error(w, "server error", http.StatusInternalServerError)
-// 		return
-// 	}
-// 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-// 	defer cancel()
-// 	row := a.DB.Pool.QueryRow(ctx, `INSERT INTO app_user (username,email,password_hash) VALUES ($1,$2,$3) RETURNING id`, req.Username, strings.ToLower(req.Email), hash)
-// 	var userID string
-// 	if err := row.Scan(&userID); err != nil {
-// 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
-// 			http.Error(w, "user exists", http.StatusConflict)
-// 			return
-// 		}
-// 		log.Error().Err(err).Msg("insert user error")
-// 		http.Error(w, "server error", http.StatusInternalServerError)
-// 		return
-// 	}
-// 	tok, err := auth.CreateAccessToken(userID)
-// 	if err != nil {
-// 		log.Error().Err(err).Msg("jwt error")
-// 		http.Error(w, "server error", http.StatusInternalServerError)
-// 		return
-// 	}
-// 	writeJSON(w, http.StatusOK, authResponse{AccessToken: tok})
-// }
+func (a *authRoutes) handleLogin(w http.ResponseWriter, r *http.Request) {
+	var req signupRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if req.Username == "" || req.Password == "" {
+		http.Error(w, "invalid fields", http.StatusBadRequest)
+		return
+	}
 
-// func (a *API) handleLogin(w http.ResponseWriter, r *http.Request) {
-// 	var req loginRequest
-// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-// 		http.Error(w, "invalid json", http.StatusBadRequest)
-// 		return
-// 	}
-// 	if req.Username == "" || req.Password == "" {
-// 		http.Error(w, "invalid fields", http.StatusBadRequest)
-// 		return
-// 	}
-// 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-// 	defer cancel()
-// 	var userID, passwordHash string
-// 	err := a.DB.Pool.QueryRow(ctx, `SELECT id, password_hash FROM app_user WHERE username=$1`, req.Username).Scan(&userID, &passwordHash)
-// 	if err != nil {
-// 		if errors.Is(err, pgx.ErrNoRows) {
-// 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
-// 			return
-// 		}
-// 		log.Error().Err(err).Msg("query user error")
-// 		http.Error(w, "server error", http.StatusInternalServerError)
-// 		return
-// 	}
-// 	ok, err := auth.VerifyPassword(req.Password, passwordHash)
-// 	if err != nil || !ok {
-// 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
-// 		return
-// 	}
-// 	tok, err := auth.CreateAccessToken(userID)
-// 	if err != nil {
-// 		log.Error().Err(err).Msg("jwt error")
-// 		http.Error(w, "server error", http.StatusInternalServerError)
-// 		return
-// 	}
-// 	writeJSON(w, http.StatusOK, authResponse{AccessToken: tok})
-// }
+	ctx := context.TODO()
+	token, err := a.authService.GenerateToken(ctx, contracts.AuthGenerateTokenInput{
+		Username: req.Username,
+		Password: req.Password,
+	})
+	if err != nil {
+		log.Error().Err(err)
+		if err == users.ErrUserNotFound {
+			http.Error(w, "server error", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "server error", http.StatusInternalServerError)
+		return
+	}
 
-// func writeJSON(w http.ResponseWriter, code int, v any) {
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(code)
-// 	_ = json.NewEncoder(w).Encode(v)
-// }
+	type response struct {
+		Token string `json:"token"`
+	}
+
+	writeJSON(w, http.StatusCreated, response{Token: token})
+}
+
+func writeJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(v)
+}

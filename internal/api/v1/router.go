@@ -17,7 +17,8 @@ func RegisterRoutes(r chi.Router, services *service.Services) {
 	r.Use(requestLogger())
 
 	r.Get("/health", handleHealth)
-	// registerAuthRoutes(r)
+
+	registerAuthRoutes(r, services.Auth)
 }
 
 func requestLogger() func(next http.Handler) http.Handler {
