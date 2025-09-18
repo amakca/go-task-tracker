@@ -7,6 +7,7 @@ import (
 	"go-task-tracker/internal/entity"
 	"go-task-tracker/internal/repo"
 	"go-task-tracker/internal/repo/repoerrs"
+	"go-task-tracker/internal/services/contracts"
 	"go-task-tracker/pkg/hasher"
 	"time"
 
@@ -22,16 +23,6 @@ var (
 	ErrUserNotFound      = fmt.Errorf("user not found")
 	ErrCannotGetUser     = fmt.Errorf("cannot get user")
 )
-
-type AuthCreateUserInput struct {
-	Username string
-	Password string
-}
-
-type AuthGenerateTokenInput struct {
-	Username string
-	Password string
-}
 
 type TokenClaims struct {
 	jwt.StandardClaims
@@ -54,7 +45,7 @@ func NewAuthService(userRepo repo.User, passwordHasher hasher.PasswordHasher, si
 	}
 }
 
-func (s *AuthService) CreateUser(ctx context.Context, input AuthCreateUserInput) (int, error) {
+func (s *AuthService) CreateUser(ctx context.Context, input contracts.AuthCreateUserInput) (int, error) {
 	user := entity.User{
 		Username: input.Username,
 		Password: s.passwordHasher.Hash(input.Password),
@@ -71,7 +62,7 @@ func (s *AuthService) CreateUser(ctx context.Context, input AuthCreateUserInput)
 	return userId, nil
 }
 
-func (s *AuthService) GenerateToken(ctx context.Context, input AuthGenerateTokenInput) (string, error) {
+func (s *AuthService) GenerateToken(ctx context.Context, input contracts.AuthGenerateTokenInput) (string, error) {
 	// get user from DB
 	user, err := s.userRepo.GetUserByUsernameAndPassword(ctx, input.Username, s.passwordHasher.Hash(input.Password))
 	if err != nil {
