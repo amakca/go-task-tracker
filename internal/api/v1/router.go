@@ -16,8 +16,7 @@ func RegisterRoutes(r chi.Router, services *service.Services) {
 	r.Use(middleware.Recoverer)
 	r.Use(requestLogger())
 
-	// r.Get("/healthz", handleHealth)
-
+	r.Get("/health", handleHealth)
 	// registerAuthRoutes(r)
 }
 
@@ -29,4 +28,9 @@ func requestLogger() func(next http.Handler) http.Handler {
 			log.Info().Str("method", r.Method).Str("path", r.URL.Path).Dur("duration", time.Since(start)).Msg("request")
 		})
 	}
+}
+
+func handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ok"))
 }

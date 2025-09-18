@@ -101,11 +101,6 @@ type authResponse struct {
 // 	writeJSON(w, http.StatusOK, authResponse{AccessToken: tok})
 // }
 
-// func handleHealth(w http.ResponseWriter, r *http.Request) {
-// 	w.WriteHeader(http.StatusOK)
-// 	_, _ = w.Write([]byte("ok"))
-// }
-
 // func writeJSON(w http.ResponseWriter, code int, v any) {
 // 	w.Header().Set("Content-Type", "application/json")
 // 	w.WriteHeader(code)
