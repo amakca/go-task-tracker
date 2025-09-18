@@ -3,6 +3,7 @@ module go-task-tracker
 go 1.24.5
 
 require (
+	github.com/amakca/go-adapt v0.0.0-20250918121735-4701ae2b0b94
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/jackc/pgconn v1.14.3
 	github.com/jackc/pgx/v5 v5.7.6
@@ -10,7 +11,6 @@ require (
 )
 
 require (
-	github.com/amakca/go-adapt v0.0.0-20250918121735-4701ae2b0b94 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
