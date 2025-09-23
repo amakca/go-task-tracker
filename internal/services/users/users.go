@@ -9,9 +9,8 @@ import (
 	"go-task-tracker/internal/repo/repoerrs"
 	"go-task-tracker/internal/services/contracts"
 	"go-task-tracker/pkg/hasher"
+	"go-task-tracker/pkg/logctx"
 	"time"
-
-	"log/slog"
 
 	"github.com/golang-jwt/jwt"
 )
@@ -58,7 +57,7 @@ func (s *AuthService) CreateUser(ctx context.Context, input contracts.AuthCreate
 		if errors.Is(err, repoerrs.ErrAlreadyExists) {
 			return 0, ErrUserAlreadyExists
 		}
-		slog.Error("AuthService.CreateUser - userRepo.CreateUser", "err", err)
+		logctx.FromContext(ctx).Error("AuthService.CreateUser - userRepo.CreateUser", "err", err)
 		return 0, ErrCannotCreateUser
 	}
 	return userId, nil
@@ -71,7 +70,7 @@ func (s *AuthService) GenerateToken(ctx context.Context, input contracts.AuthGen
 		if errors.Is(err, repoerrs.ErrNotFound) {
 			return "", ErrUserNotFound
 		}
-		slog.Error("AuthService.GenerateToken: cannot get user", "err", err)
+		logctx.FromContext(ctx).Error("AuthService.GenerateToken: cannot get user", "err", err)
 		return "", ErrCannotGetUser
 	}
 
@@ -87,7 +86,7 @@ func (s *AuthService) GenerateToken(ctx context.Context, input contracts.AuthGen
 	// sign token
 	tokenString, err := token.SignedString([]byte(s.signKey))
 	if err != nil {
-		slog.Error("AuthService.GenerateToken: cannot sign token", "err", err)
+		logctx.FromContext(ctx).Error("AuthService.GenerateToken: cannot sign token", "err", err)
 		return "", ErrCannotSignToken
 	}
 

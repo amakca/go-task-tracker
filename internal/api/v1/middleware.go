@@ -3,7 +3,7 @@ package v1
 import (
 	"context"
 	"go-task-tracker/internal/services/contracts"
-	"log/slog"
+	"go-task-tracker/pkg/logctx"
 	"net/http"
 	"strings"
 )
@@ -18,16 +18,18 @@ type AuthMiddleware struct {
 
 func (h *AuthMiddleware) UserIdentity(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log := logctx.FromContext(r.Context())
+
 		token, ok := bearerToken(r)
 		if !ok {
-			slog.Warn("AuthMiddleware.UserIdentity: bearerToken", "error", ErrInvalidAuthHeader)
+			log.Warn("AuthMiddleware.UserIdentity: bearerToken", "error", ErrInvalidAuthHeader)
 			newErrorResponseHTTP(w, http.StatusUnauthorized, ErrInvalidAuthHeader.Error())
 			return
 		}
 
 		userId, err := h.authService.ParseToken(token)
 		if err != nil {
-			slog.Warn("AuthMiddleware.UserIdentity: ParseToken", "err", err)
+			log.Warn("AuthMiddleware.UserIdentity: ParseToken", "err", err)
 			newErrorResponseHTTP(w, http.StatusUnauthorized, ErrCannotParseToken.Error())
 			return
 		}
