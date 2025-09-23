@@ -60,17 +60,24 @@ func New(url string, opts ...Option) (*Postgres, error) {
 
 	poolConfig.MaxConns = int32(pg.maxPoolSize)
 
-	for pg.connAttempts > 0 {
+	ticker := time.NewTicker(pg.connTimeout)
+	defer ticker.Stop()
+
+	for attempt := 0; attempt < pg.connAttempts; attempt++ {
 		pg.Pool, err = pgxpool.NewWithConfig(context.Background(), poolConfig)
 		if err == nil {
 			break
 		}
 
-		slog.Warn("Postgres is trying to connect", "attempts_left", pg.connAttempts)
-		time.Sleep(pg.connTimeout)
-		pg.connAttempts--
-	}
+		slog.Warn("Postgres connection attempt failed",
+			"attempt", attempt,
+			"max_attempts", pg.connAttempts,
+			"error", err)
 
+		if attempt < pg.connAttempts {
+			<-ticker.C
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("pgdb - New - pgxpool.ConnectConfig: %w", err)
 	}
