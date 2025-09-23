@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	adapter "github.com/amakca/go-adapt/adapt"
+	"github.com/amakca/go-adapt/adapt"
 )
 
 type (
@@ -52,7 +52,9 @@ type (
 func NewConfig(configPath string) (*Config, error) {
 	cfg := &Config{}
 
-	adapter.New()
+	adapt.New()
+	// _, err := adapter.AdaptStruct(cfg)
+
 	// err := cleanenv.ReadConfig(path.Join("./", configPath), cfg)
 	// if err != nil {
 	// 	return nil, fmt.Errorf("error reading config file: %w", err)

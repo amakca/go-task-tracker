@@ -1,61 +1,56 @@
 package v1
 
 import (
-	"context"
 	"encoding/json"
 	"go-task-tracker/internal/services/contracts"
 	"go-task-tracker/internal/services/users"
+	"go-task-tracker/pkg/validator"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog/log"
 )
 
 type authRoutes struct {
 	authService contracts.Auth
 }
 
-type signupRequest struct {
+type authInput struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
-func registerAuthRoutes(r chi.Router, authService contracts.Auth) {
-	a := &authRoutes{
+func newAuthRoutes(router chi.Router, authService contracts.Auth) {
+	routes := &authRoutes{
 		authService: authService,
 	}
 
-	r.Route("/auth", func(r chi.Router) {
-		r.Post("/signup", a.handleSignup)
-		r.Post("/login", a.handleLogin)
-	})
+	router.Post("/sign-up", routes.handleSignup)
+	router.Post("/sign-in", routes.handleLogin)
 }
 
-func (a *authRoutes) handleSignup(w http.ResponseWriter, r *http.Request) {
+func (a *authRoutes) handleSignup(w http.ResponseWriter, req *http.Request) {
+	var input authInput
 
-	var req signupRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
+	if err := json.NewDecoder(req.Body).Decode(&input); err != nil {
+		newErrorResponseHTTP(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	if req.Username == "" || len(req.Password) < 6 {
-		http.Error(w, "invalid fields", http.StatusBadRequest)
+	if err := validator.NewCustomValidator().Validate(input); err != nil {
+		newErrorResponseHTTP(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	ctx := context.TODO()
-	id, err := a.authService.CreateUser(ctx, contracts.AuthCreateUserInput{
-		Username: req.Username,
-		Password: req.Password,
+	id, err := a.authService.CreateUser(req.Context(), contracts.AuthCreateUserInput{
+		Username: input.Username,
+		Password: input.Password,
 	})
 	if err != nil {
-		log.Error().Err(err)
 		if err == users.ErrUserAlreadyExists {
-			http.Error(w, "server error", http.StatusBadRequest)
+			newErrorResponseHTTP(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		http.Error(w, "server error", http.StatusInternalServerError)
+		newErrorResponseHTTP(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
@@ -63,32 +58,34 @@ func (a *authRoutes) handleSignup(w http.ResponseWriter, r *http.Request) {
 		Id int `json:"id"`
 	}
 
-	writeJSON(w, http.StatusCreated, response{Id: id})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(response{Id: id})
 }
 
-func (a *authRoutes) handleLogin(w http.ResponseWriter, r *http.Request) {
-	var req signupRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
-		return
-	}
-	if req.Username == "" || req.Password == "" {
-		http.Error(w, "invalid fields", http.StatusBadRequest)
+func (a *authRoutes) handleLogin(w http.ResponseWriter, req *http.Request) {
+	var input authInput
+
+	if err := json.NewDecoder(req.Body).Decode(&input); err != nil {
+		newErrorResponseHTTP(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	ctx := context.TODO()
-	token, err := a.authService.GenerateToken(ctx, contracts.AuthGenerateTokenInput{
-		Username: req.Username,
-		Password: req.Password,
+	if err := validator.NewCustomValidator().Validate(input); err != nil {
+		newErrorResponseHTTP(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	token, err := a.authService.GenerateToken(req.Context(), contracts.AuthGenerateTokenInput{
+		Username: input.Username,
+		Password: input.Password,
 	})
 	if err != nil {
-		log.Error().Err(err)
 		if err == users.ErrUserNotFound {
-			http.Error(w, "server error", http.StatusBadRequest)
+			newErrorResponseHTTP(w, http.StatusBadRequest, "invalid username or password")
 			return
 		}
-		http.Error(w, "server error", http.StatusInternalServerError)
+		newErrorResponseHTTP(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
@@ -96,11 +93,7 @@ func (a *authRoutes) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Token string `json:"token"`
 	}
 
-	writeJSON(w, http.StatusCreated, response{Token: token})
-}
-
-func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(v)
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response{Token: token})
 }

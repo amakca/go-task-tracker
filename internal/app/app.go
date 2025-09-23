@@ -52,14 +52,13 @@ func Run(configPath string) {
 
 	// Handlers
 	log.Info().Msg("Initializing handlers and routes...")
-
-	handler := chi.NewRouter()
-	v1.RegisterRoutes(handler, services)
+	r := chi.NewRouter()
+	v1.NewRouter(r, services)
 
 	// HTTP server
 	log.Info().Msg("Starting http server...")
 	log.Debug().Msg(fmt.Sprintf("Server port: %s", cfg.HTTP.Port))
-	httpServer := httpserver.New(handler, httpserver.Port(cfg.HTTP.Port))
+	httpServer := httpserver.New(r, httpserver.Port(cfg.HTTP.Port))
 
 	// Waiting signal
 	log.Info().Msg("Configuring graceful shutdown...")
