@@ -11,6 +11,8 @@ import (
 	"go-task-tracker/pkg/hasher"
 	"time"
 
+	"log/slog"
+
 	"github.com/golang-jwt/jwt"
 )
 
@@ -56,7 +58,7 @@ func (s *AuthService) CreateUser(ctx context.Context, input contracts.AuthCreate
 		if errors.Is(err, repoerrs.ErrAlreadyExists) {
 			return 0, ErrUserAlreadyExists
 		}
-		// log.Errorf("AuthService.CreateUser - c.userRepo.CreateUser: %v", err)
+		slog.Error("AuthService.CreateUser - userRepo.CreateUser", "err", err)
 		return 0, ErrCannotCreateUser
 	}
 	return userId, nil
@@ -69,7 +71,7 @@ func (s *AuthService) GenerateToken(ctx context.Context, input contracts.AuthGen
 		if errors.Is(err, repoerrs.ErrNotFound) {
 			return "", ErrUserNotFound
 		}
-		// log.Errorf("AuthService.GenerateToken: cannot get user: %v", err)
+		slog.Error("AuthService.GenerateToken: cannot get user", "err", err)
 		return "", ErrCannotGetUser
 	}
 
@@ -85,7 +87,7 @@ func (s *AuthService) GenerateToken(ctx context.Context, input contracts.AuthGen
 	// sign token
 	tokenString, err := token.SignedString([]byte(s.signKey))
 	if err != nil {
-		// log.Errorf("AuthService.GenerateToken: cannot sign token: %v", err)
+		slog.Error("AuthService.GenerateToken: cannot sign token", "err", err)
 		return "", ErrCannotSignToken
 	}
 

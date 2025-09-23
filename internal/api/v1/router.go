@@ -7,9 +7,10 @@ import (
 	"os"
 	"time"
 
+	"log/slog"
+
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
-	"github.com/rs/zerolog/log"
 )
 
 func NewRouter(r chi.Router, services *service.Services) {
@@ -52,7 +53,8 @@ func NewRouter(r chi.Router, services *service.Services) {
 func setLogsFile() *os.File {
 	file, err := os.OpenFile("/logs/requests.log", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
-		log.Fatal().Err(err)
+		slog.Error("cannot open requests.log", "err", err)
+		os.Exit(1)
 	}
 	return file
 }

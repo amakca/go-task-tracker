@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"go-task-tracker/config"
 	v1 "go-task-tracker/internal/api/v1"
 	"go-task-tracker/internal/repo"
@@ -9,38 +8,39 @@ import (
 	"go-task-tracker/pkg/hasher"
 	httpserver "go-task-tracker/pkg/httpsserver"
 	"go-task-tracker/pkg/postgres"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog/log"
 )
 
 func Run(configPath string) {
 	// Configuration
 	cfg, err := config.NewConfig(configPath)
 	if err != nil {
-		log.Fatal().Err(err).Msg("config error")
+		slog.Error("config error", "err", err)
+		os.Exit(1)
 	}
 
 	// Logger
 	configureLogging()
 
 	// DB
-	log.Info().Msg("Initializing postgres...")
+	slog.Info("Initializing postgres...")
 	pg, err := postgres.New(cfg.PG.URL, postgres.MaxPoolSize(cfg.PG.MaxPoolSize))
 	if err != nil {
-		log.Err(err).Msg("app - Run - pgdb.NewServices")
+		slog.Error("app - Run - pgdb.NewServices", "err", err)
 	}
 	defer pg.Close()
 
 	// Repositories
-	log.Info().Msg("Initializing repositories...")
+	slog.Info("Initializing repositories...")
 	repositories := repo.NewRepositories(pg)
 
 	// Services dependencies
-	log.Info().Msg("Initializing services...")
+	slog.Info("Initializing services...")
 	deps := service.ServicesDependencies{
 		Repos: repositories,
 		// GDrive:   gdrive.New(cfg.WebAPI.GDriveJSONFilePath),
@@ -51,31 +51,31 @@ func Run(configPath string) {
 	services := service.NewServices(deps)
 
 	// Handlers
-	log.Info().Msg("Initializing handlers and routes...")
+	slog.Info("Initializing handlers and routes...")
 	r := chi.NewRouter()
 	v1.NewRouter(r, services)
 
 	// HTTP server
-	log.Info().Msg("Starting http server...")
-	log.Debug().Msg(fmt.Sprintf("Server port: %s", cfg.HTTP.Port))
+	slog.Info("Starting http server...")
+	slog.Debug("Server starting", "port", cfg.HTTP.Port)
 	httpServer := httpserver.New(r, httpserver.Port(cfg.HTTP.Port))
 
 	// Waiting signal
-	log.Info().Msg("Configuring graceful shutdown...")
+	slog.Info("Configuring graceful shutdown...")
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
 	select {
 	case s := <-interrupt:
-		log.Info().Msg("app - Run - signal: " + s.String())
+		slog.Info("app - Run - signal", "signal", s.String())
 	case err = <-httpServer.Notify():
-		log.Error().Err(err).Msg("app - Run - httpServer.Notify")
+		slog.Error("app - Run - httpServer.Notify", "err", err)
 	}
 
 	// Graceful shutdown
-	log.Info().Msg("Shutting down...")
+	slog.Info("Shutting down...")
 	err = httpServer.Shutdown()
 	if err != nil {
-		log.Error().Err(err).Msg("app - Run - httpServer.Shutdown")
+		slog.Error("app - Run - httpServer.Shutdown", "err", err)
 	}
 }

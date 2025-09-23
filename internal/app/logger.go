@@ -4,17 +4,26 @@ import (
 	"os"
 	"time"
 
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	"log/slog"
 )
 
 func configureLogging() {
 	if os.Getenv("ENV") == "dev" || os.Getenv("ENV") == "development" {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug, ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				return slog.String(slog.TimeKey, time.Now().Format(time.RFC3339))
+			}
+			return a
+		}})
+		slog.SetDefault(slog.New(handler))
 		return
 	}
 
-	zerolog.TimeFieldFormat = time.RFC3339
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo, ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+		if a.Key == slog.TimeKey {
+			return slog.String(slog.TimeKey, time.Now().Format(time.RFC3339))
+		}
+		return a
+	}})
+	slog.SetDefault(slog.New(handler))
 }

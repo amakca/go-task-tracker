@@ -3,7 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -66,7 +66,7 @@ func New(url string, opts ...Option) (*Postgres, error) {
 			break
 		}
 
-		log.Printf("Postgres is trying to connect, attempts left: %d", pg.connAttempts)
+		slog.Warn("Postgres is trying to connect", "attempts_left", pg.connAttempts)
 		time.Sleep(pg.connTimeout)
 		pg.connAttempts--
 	}

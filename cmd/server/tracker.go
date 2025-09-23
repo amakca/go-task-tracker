@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/rs/zerolog/log"
+	"log/slog"
 )
 
 type Tracker struct {
@@ -21,12 +21,13 @@ func NewTracker(srv *http.Server) *Tracker {
 
 func (t *Tracker) Start() {
 	if err := t.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatal().Err(err).Msg("http server failed")
+		slog.Error("http server failed", "err", err)
+		panic(err)
 	}
 }
 
 func (t *Tracker) Shutdown(ctxShutdown context.Context) {
 	if err := t.srv.Shutdown(ctxShutdown); err != nil {
-		log.Error().Err(err).Msg("server shutdown error")
+		slog.Error("server shutdown error", "err", err)
 	}
 }
